@@ -1,2 +1,0 @@
-class EinsteinError(Exception):
-    pass
