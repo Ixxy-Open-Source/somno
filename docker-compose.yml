@@ -1,0 +1,59 @@
+version: '3'
+
+volumes: 
+    web:
+    somnostorage:
+        external: true
+    ipython_data_local: {}
+
+services:
+    web:
+        restart: always
+        build: ./web
+        stdin_open: true
+        tty: true
+        ports: 
+            - "8000:8000"
+            - "6900:6900"  # pudb
+        depends_on:
+            - postgres
+            - redis
+        env_file: .env
+        volumes: 
+            - web:/data
+            - ./web:/data/web
+            - somnostorage:/storage:delegated
+            - ipython_data_local:/root/.ipython/profile_default
+        working_dir: /data/web/somno_app
+        # command: gunicorn ./somno_app.wsgi
+        # command: bash -c "python3.6 ./manage.py collectstatic --no-input && python3.6 ./manage.py makemigrations && python3.6 ./manage.py migrate && python3.6 ./manage.py runserver 0.0.0.0:8000"
+        # command: bash -c "python3.6 ./manage.py collectstatic --no-input && python3.6 ./manage.py runserver_plus 0.0.0.0:8000"
+        command: bash -c "python3.6 manage.py migrate && python3.6 manage.py runserver 0.0.0.0:8000"
+
+    nginx:
+        restart: always
+        build: ./nginx/
+        depends_on: 
+            - web
+        ports:
+            - "80:80"
+        volumes:
+            - web:/data
+            - ./web/somno_app/static:/static
+        
+    postgres:
+        restart: always
+        build: ./postgres
+        volumes:
+            # - somnostorage:/storage
+            - somnostorage:/var/lib/postgresql/data:delegated
+        env_file:
+            - .env
+        expose: 
+            - "5432"
+
+    redis:
+        restart: always
+        image: redis:latest
+        ports: 
+            - "6379:6379"
